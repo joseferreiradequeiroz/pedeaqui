@@ -4,6 +4,15 @@ public static class ResourceErrorMessages
 {
     public const string INVALID_REQUEST = "Um ou mais campos da requisição são inválidos.";
     public const string UNKNOWN_ERROR = "Ocorreu um erro inesperado. Tente novamente mais tarde.";
+    public const string REQUEST_BODY_TOO_LARGE = "O corpo da requisição excede o tamanho máximo permitido.";
+    public const string RATE_LIMIT_EXCEEDED = "Muitas requisições. Aguarde antes de tentar novamente.";
+    public const string DUPLICATED_RESOURCE = "O recurso já existe ou conflita com outro registro.";
+    public const string CONCURRENCY_CONFLICT = "O recurso foi alterado por outra requisição. Recarregue e tente novamente.";
+
+    public const string IDEMPOTENCY_KEY_INVALID = "O header Idempotency-Key é obrigatório e deve ter entre 1 e 100 caracteres, sem ser só espaços.";
+    public const string IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_REQUEST = "Esta Idempotency-Key já foi usada com outra requisição. Gere uma chave nova para uma operação nova.";
+    public const string IDEMPOTENCY_REQUEST_IN_PROGRESS = "Uma requisição com esta Idempotency-Key ainda está em andamento. Tente novamente em instantes.";
+    public const string IDEMPOTENCY_REQUEST_BODY_INVALID = "O corpo da requisição é um JSON inválido ou contém propriedades duplicadas.";
 
     public const string NAME_REQUIRED = "O nome é obrigatório.";
     public const string EMAIL_REQUIRED = "O e-mail é obrigatório.";
@@ -36,7 +45,11 @@ public static class ResourceErrorMessages
     public const string ORDER_ITEM_PRODUCT_REQUIRED = "Todo item deve informar o produto.";
     public const string ORDER_ITEM_QUANTITY_MUST_BE_GREATER_THAN_ZERO = "A quantidade de cada item deve ser maior que zero.";
     public const string ORDER_DUPLICATED_PRODUCT = "O mesmo produto não pode aparecer em mais de um item do pedido.";
+    public const string ORDER_TOO_MANY_ITEMS = "O pedido deve ter no máximo {0} itens.";
+    public const string ORDER_ITEM_QUANTITY_ABOVE_LIMIT = "A quantidade de cada item deve ser no máximo {0}.";
     public const string ORDER_CANNOT_BE_CHANGED = "Somente pedidos pendentes podem ser alterados.";
-    public const string ORDER_CANNOT_BE_CANCELLED = "Somente pedidos pendentes podem ser cancelados.";
-    public const string ORDER_CANNOT_BE_CONFIRMED = "Somente pedidos pendentes podem ser confirmados.";
+    public const string ORDER_INVALID_STATUS_TRANSITION = "Não é possível mudar o pedido de {0} para {1}.";
+
+    public const string PAYMENT_GATEWAY_UNAVAILABLE = "O gateway de pagamento está indisponível no momento. Tente novamente mais tarde.";
+    public const string PAYMENT_GATEWAY_REJECTED = "O gateway de pagamento recusou a requisição de forma permanente.";
 }

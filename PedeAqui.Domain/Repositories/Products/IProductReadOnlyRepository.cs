@@ -4,9 +4,9 @@ namespace PedeAqui.Domain.Repositories.Products;
 
 public interface IProductReadOnlyRepository
 {
-    Task<List<Product>> GetAllActive();
+    Task<List<Product>> GetAllActive(CancellationToken cancellationToken);
 
-    Task<Product?> GetById(long id);
+    Task<Product?> GetById(long id, CancellationToken cancellationToken);
 
-    Task<bool> ExistsWithSku(string sku, long? ignoreProductId = null);
+    Task<bool> ExistsWithSku(string sku, long? ignoreProductId, CancellationToken cancellationToken);
 }

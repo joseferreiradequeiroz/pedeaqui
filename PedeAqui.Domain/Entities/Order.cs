@@ -13,11 +13,13 @@ public class Order
     public decimal Total { get; private set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; private set; }
+    public DateTime? PaymentStartedAt { get; private set; }
+    public bool IsFinal => Status is OrderStatus.Confirmed or OrderStatus.Cancelled or OrderStatus.Expired;
     public List<OrderItem> Items { get; set; } = [];
 
     public void SetItem(Product product, int quantity)
     {
-        EnsureIsPending(ResourceErrorMessages.ORDER_CANNOT_BE_CHANGED);
+        EnsureCanBeChanged();
 
         var item = Items.FirstOrDefault(item => item.ProductId == product.Id);
         if (item is null)
@@ -40,30 +42,52 @@ public class Order
 
     public void RemoveItem(long productId)
     {
-        EnsureIsPending(ResourceErrorMessages.ORDER_CANNOT_BE_CHANGED);
+        EnsureCanBeChanged();
 
         Items.RemoveAll(item => item.ProductId == productId);
         RecalculateTotal();
     }
 
-    public void Confirm()
+    public void StartPayment()
     {
-        EnsureIsPending(ResourceErrorMessages.ORDER_CANNOT_BE_CONFIRMED);
-        Status = OrderStatus.Confirmed;
-        UpdatedAt = DateTime.UtcNow;
+        MoveTo(OrderStatus.AwaitingPayment, OrderStatus.Pending);
+        PaymentStartedAt = DateTime.UtcNow;
+    }
+
+    public void ConfirmPayment()
+    {
+        MoveTo(OrderStatus.Confirmed, OrderStatus.AwaitingPayment);
+    }
+
+    public void FailPayment()
+    {
+        MoveTo(OrderStatus.PaymentFailed, OrderStatus.AwaitingPayment);
+        MoveTo(OrderStatus.Cancelled, OrderStatus.PaymentFailed);
     }
 
     public void Cancel()
     {
-        EnsureIsPending(ResourceErrorMessages.ORDER_CANNOT_BE_CANCELLED);
-        Status = OrderStatus.Cancelled;
-        UpdatedAt = DateTime.UtcNow;
+        MoveTo(OrderStatus.Cancelled, OrderStatus.Pending);
     }
 
-    public void EnsureIsPending(string message)
+    public void Expire()
+    {
+        MoveTo(OrderStatus.Expired, OrderStatus.Pending);
+    }
+
+    public void EnsureCanBeChanged()
     {
         if (Status != OrderStatus.Pending)
-            throw new BusinessRuleException(message);
+            throw new ConflictException(ResourceErrorMessages.ORDER_CANNOT_BE_CHANGED);
+    }
+
+    private void MoveTo(OrderStatus destination, OrderStatus requiredOrigin)
+    {
+        if (Status != requiredOrigin)
+            throw new ConflictException(string.Format(ResourceErrorMessages.ORDER_INVALID_STATUS_TRANSITION, Status, destination));
+
+        Status = destination;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     private void RecalculateTotal()

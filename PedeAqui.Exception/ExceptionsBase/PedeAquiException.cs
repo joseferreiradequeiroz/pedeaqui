@@ -8,6 +8,10 @@ public abstract class PedeAquiException : SystemException
     {
     }
 
+    protected PedeAquiException(string message, System.Exception? innerException) : base(message, innerException)
+    {
+    }
+
     public abstract HttpStatusCode GetStatusCode();
 
     public abstract IList<string> GetErrorMessages();

@@ -4,5 +4,5 @@ namespace PedeAqui.Domain.Repositories.Users;
 
 public interface IUserWriteOnlyRepository
 {
-    Task Add(User user);
+    Task Add(User user, CancellationToken cancellationToken);
 }

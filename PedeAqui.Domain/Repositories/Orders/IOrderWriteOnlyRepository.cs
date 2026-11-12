@@ -4,5 +4,5 @@ namespace PedeAqui.Domain.Repositories.Orders;
 
 public interface IOrderWriteOnlyRepository
 {
-    Task Add(Order order);
+    Task Add(Order order, CancellationToken cancellationToken);
 }

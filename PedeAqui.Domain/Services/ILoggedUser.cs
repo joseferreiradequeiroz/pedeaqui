@@ -4,5 +4,5 @@ namespace PedeAqui.Domain.Services;
 
 public interface ILoggedUser
 {
-    Task<User> Get();
+    Task<User> Get(CancellationToken cancellationToken);
 }
