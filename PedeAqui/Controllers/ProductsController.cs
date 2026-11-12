@@ -19,9 +19,11 @@ public class ProductsController : ControllerBase
     [HttpGet]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ProductsResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAll([FromServices] IGetAllProductsUseCase useCase)
+    public async Task<IActionResult> GetAll(
+        [FromServices] IGetAllProductsUseCase useCase,
+        CancellationToken cancellationToken)
     {
-        var response = await useCase.Execute();
+        var response = await useCase.Execute(cancellationToken);
         return Ok(response);
     }
 
@@ -31,9 +33,10 @@ public class ProductsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(
         [FromRoute] long id,
-        [FromServices] IGetProductByIdUseCase useCase)
+        [FromServices] IGetProductByIdUseCase useCase,
+        CancellationToken cancellationToken)
     {
-        var response = await useCase.Execute(id);
+        var response = await useCase.Execute(id, cancellationToken);
         return Ok(response);
     }
 
@@ -42,9 +45,10 @@ public class ProductsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Register(
         [FromBody] ProductRequest request,
-        [FromServices] IRegisterProductUseCase useCase)
+        [FromServices] IRegisterProductUseCase useCase,
+        CancellationToken cancellationToken)
     {
-        var response = await useCase.Execute(request);
+        var response = await useCase.Execute(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
     }
 
@@ -52,23 +56,27 @@ public class ProductsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(
         [FromRoute] long id,
         [FromBody] ProductRequest request,
-        [FromServices] IUpdateProductUseCase useCase)
+        [FromServices] IUpdateProductUseCase useCase,
+        CancellationToken cancellationToken)
     {
-        await useCase.Execute(id, request);
+        await useCase.Execute(id, request, cancellationToken);
         return NoContent();
     }
 
     [HttpDelete("{id:long}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(
         [FromRoute] long id,
-        [FromServices] IDeleteProductUseCase useCase)
+        [FromServices] IDeleteProductUseCase useCase,
+        CancellationToken cancellationToken)
     {
-        await useCase.Execute(id);
+        await useCase.Execute(id, cancellationToken);
         return NoContent();
     }
 }

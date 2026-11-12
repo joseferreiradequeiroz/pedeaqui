@@ -6,6 +6,7 @@ using PedeAqui.Application.UseCases.Stock.GetByProduct;
 using PedeAqui.Communication.Requests;
 using PedeAqui.Communication.Responses;
 using PedeAqui.Domain.Enums;
+using PedeAqui.Filters;
 
 namespace PedeAqui.Controllers;
 
@@ -19,26 +20,30 @@ public class StockController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get(
         [FromRoute] long productId,
-        [FromServices] IGetStockByProductUseCase useCase)
+        [FromServices] IGetStockByProductUseCase useCase,
+        CancellationToken cancellationToken)
     {
-        var response = await useCase.Execute(productId);
+        var response = await useCase.Execute(productId, cancellationToken);
         return Ok(response);
     }
 
     [HttpPost("entries")]
+    [Idempotent]
     [ProducesResponseType(typeof(StockMovementResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RegisterEntry(
         [FromRoute] long productId,
         [FromBody] StockMovementRequest request,
-        [FromServices] IRegisterStockEntryUseCase useCase)
+        [FromServices] IRegisterStockEntryUseCase useCase,
+        CancellationToken cancellationToken)
     {
-        var response = await useCase.Execute(productId, request);
+        var response = await useCase.Execute(productId, request, cancellationToken);
         return CreatedAtAction(nameof(Get), new { productId }, response);
     }
 
     [HttpPost("exits")]
+    [Idempotent]
     [ProducesResponseType(typeof(StockMovementResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -46,9 +51,10 @@ public class StockController : ControllerBase
     public async Task<IActionResult> RegisterExit(
         [FromRoute] long productId,
         [FromBody] StockMovementRequest request,
-        [FromServices] IRegisterStockExitUseCase useCase)
+        [FromServices] IRegisterStockExitUseCase useCase,
+        CancellationToken cancellationToken)
     {
-        var response = await useCase.Execute(productId, request);
+        var response = await useCase.Execute(productId, request, cancellationToken);
         return CreatedAtAction(nameof(Get), new { productId }, response);
     }
 }

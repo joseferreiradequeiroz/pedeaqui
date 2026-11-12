@@ -1,16 +1,17 @@
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
-using PedeAqui.Exception.ExceptionsBase;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace PedeAqui.ExceptionHandlers;
 
 public class PedeAquiExceptionHandler : IExceptionHandler
 {
     private readonly IProblemDetailsService _problemDetailsService;
+    private readonly ProblemDetailsFactory _problemDetailsFactory;
 
-    public PedeAquiExceptionHandler(IProblemDetailsService problemDetailsService)
+    public PedeAquiExceptionHandler(IProblemDetailsService problemDetailsService, ProblemDetailsFactory problemDetailsFactory)
     {
         _problemDetailsService = problemDetailsService;
+        _problemDetailsFactory = problemDetailsFactory;
     }
 
     public async ValueTask<bool> TryHandleAsync(
@@ -18,20 +19,9 @@ public class PedeAquiExceptionHandler : IExceptionHandler
         System.Exception exception,
         CancellationToken cancellationToken)
     {
-        if (exception is not PedeAquiException pedeAquiException)
-            return false;
+        var problemDetails = ExceptionProblemDetails.Create(_problemDetailsFactory, httpContext, exception);
 
-        var statusCode = (int)pedeAquiException.GetStatusCode();
-
-        httpContext.Response.StatusCode = statusCode;
-
-        var problemDetails = new ProblemDetails
-        {
-            Status = statusCode,
-            Detail = pedeAquiException.Message
-        };
-
-        problemDetails.Extensions["errors"] = pedeAquiException.GetErrorMessages();
+        httpContext.Response.StatusCode = problemDetails.Status!.Value;
 
         return await _problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {
