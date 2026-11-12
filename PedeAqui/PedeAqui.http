@@ -1,0 +1,62 @@
+@host = http://localhost:5238
+@adminToken = cole-aqui-o-token-do-admin
+@customerToken = cole-aqui-o-token-do-cliente
+
+### Login do admin (criado automaticamente em Development)
+POST {{host}}/api/users/login
+Content-Type: application/json
+
+{ "email": "admin@pedeaqui.dev", "password": "Admin@123" }
+
+### Cadastro de cliente
+POST {{host}}/api/users
+Content-Type: application/json
+
+{ "name": "Cliente Teste", "email": "cliente@pedeaqui.dev", "password": "Cliente@123" }
+
+### Cadastrar produto (admin)
+POST {{host}}/api/products
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "name": "Pizza Margherita", "description": "Molho, mussarela e manjericão", "sku": "PIZZA-MARG", "price": 49.90 }
+
+### Catálogo (público)
+GET {{host}}/api/products
+
+### Entrada de estoque (admin)
+POST {{host}}/api/products/1/stock/entries
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "quantity": 20, "reason": "Compra do fornecedor" }
+
+### Consultar estoque e histórico (admin)
+GET {{host}}/api/products/1/stock
+Authorization: Bearer {{adminToken}}
+
+### Criar pedido (cliente)
+POST {{host}}/api/orders
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{ "items": [ { "productId": 1, "quantity": 2 } ] }
+
+### Alterar itens do pedido (cliente, só pendente)
+PUT {{host}}/api/orders/1
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{ "items": [ { "productId": 1, "quantity": 3 } ] }
+
+### Listar meus pedidos
+GET {{host}}/api/orders
+Authorization: Bearer {{customerToken}}
+
+### Cancelar pedido (devolve o estoque)
+PATCH {{host}}/api/orders/1/cancel
+Authorization: Bearer {{customerToken}}
+
+### Confirmar pedido (admin)
+PATCH {{host}}/api/orders/1/confirm
+Authorization: Bearer {{adminToken}}

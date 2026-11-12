@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>8f6d2b1a-3c4e-4f7a-9b2d-6e1f0a7c5d93</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.31">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PedeAqui.Application\PedeAqui.Application.csproj" />
+    <ProjectReference Include="..\PedeAqui.Communication\PedeAqui.Communication.csproj" />
+    <ProjectReference Include="..\PedeAqui.Exception\PedeAqui.Exception.csproj" />
+    <ProjectReference Include="..\PedeAqui.Infrastructure\PedeAqui.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
