@@ -4,14 +4,14 @@ services:
     image: postgres:17-alpine
     environment:
       POSTGRES_DB: pedeaqui
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
     ports:
       - "5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d pedeaqui"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d pedeaqui"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -30,8 +30,8 @@ services:
     hostname: pedeaqui-rabbitmq
     image: rabbitmq:3-management
     environment:
-      RABBITMQ_DEFAULT_USER: pedeaqui
-      RABBITMQ_DEFAULT_PASS: pedeaqui
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?defina RABBITMQ_USER no .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no .env}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -63,14 +63,14 @@ services:
     stop_grace_period: 40s
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Connection: "Host=postgres;Port=5432;Database=pedeaqui;Username=postgres;Password=postgres"
+      ConnectionStrings__Connection: "Host=postgres;Port=5432;Database=pedeaqui;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       ConnectionStrings__Redis: "redis:6379,abortConnect=false,connectTimeout=1000,asyncTimeout=1000"
       RabbitMq__HostName: rabbitmq
-      RabbitMq__UserName: pedeaqui
-      RabbitMq__Password: pedeaqui
-      Settings__Jwt__SigningKey: "${JWT_SIGNING_KEY:-chave-de-desenvolvimento-do-compose-do-pedeaqui}"
-      Settings__Admin__Email: "${ADMIN_EMAIL:-admin@pedeaqui.dev}"
-      Settings__Admin__Password: "${ADMIN_PASSWORD:-Admin@123}"
+      RabbitMq__UserName: ${RABBITMQ_USER}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD}
+      Settings__Jwt__SigningKey: "${JWT_SIGNING_KEY:?defina JWT_SIGNING_KEY no .env}"
+      Settings__Admin__Email: "${ADMIN_EMAIL:?defina ADMIN_EMAIL no .env}"
+      Settings__Admin__Password: "${ADMIN_PASSWORD:?defina ADMIN_PASSWORD no .env}"
     ports:
       - "5238:8080"
     depends_on:
@@ -93,11 +93,11 @@ services:
       dockerfile: PedeAqui.Worker/Dockerfile
     stop_grace_period: 40s
     environment:
-      ConnectionStrings__Connection: "Host=postgres;Port=5432;Database=pedeaqui;Username=postgres;Password=postgres"
+      ConnectionStrings__Connection: "Host=postgres;Port=5432;Database=pedeaqui;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       ConnectionStrings__Redis: "redis:6379,abortConnect=false,connectTimeout=1000,asyncTimeout=1000"
       RabbitMq__HostName: rabbitmq
-      RabbitMq__UserName: pedeaqui
-      RabbitMq__Password: pedeaqui
+      RabbitMq__UserName: ${RABBITMQ_USER}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD}
       PaymentGateway__BaseUrl: "http://payment-gateway:8080"
     depends_on:
       api:

@@ -1,4 +1,5 @@
-@host = http://localhost:5238
+# Variáveis vêm de http-client.env.json (host) e http-client.env.json.user (credenciais, fora do git).
+# No Visual Studio, selecione o ambiente "dev" no canto superior direito do editor.
 @adminToken = cole-aqui-o-token-do-admin
 @customerToken = cole-aqui-o-token-do-cliente
 
@@ -6,7 +7,7 @@
 POST {{host}}/api/users/login
 Content-Type: application/json
 
-{ "email": "admin@pedeaqui.dev", "password": "Admin@123" }
+{ "email": "{{adminEmail}}", "password": "{{adminPassword}}" }
 
 ### Cadastro de cliente
 POST {{host}}/api/users
