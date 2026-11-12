@@ -6,6 +6,7 @@ using PedeAqui.IntegrationTests.Support;
 
 namespace PedeAqui.IntegrationTests.Orders;
 
+[Collection(IntegrationCollection.Name)]
 public class OrderEndpointsTests : IClassFixture<PedeAquiWebApplicationFactory>
 {
     private readonly PedeAquiWebApplicationFactory _factory;
@@ -144,35 +145,75 @@ public class OrderEndpointsTests : IClassFixture<PedeAquiWebApplicationFactory>
         Assert.Equal(5, await admin.StockOf(pizza.Id));
         var cancelled = await PedeAquiApiClient.Read<OrderResponse>(await customer.GetOrder(order.Id));
         Assert.Equal(OrderStatus.Cancelled, cancelled.Status);
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await customer.CancelOrder(order.Id)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await customer.CancelOrder(order.Id)).StatusCode);
     }
 
     [Fact]
-    public async Task Confirm_AsCustomer_ReturnsForbidden()
+    public async Task Cancelling_order_awaiting_payment_returns_409()
+    {
+        var admin = await Admin();
+        var pizza = await admin.CreateProductWithStock(stock: 5);
+        var customer = await Customer();
+        var order = await PedeAquiApiClient.Read<OrderResponse>(await customer.CreateOrder(RequestBuilder.Order((pizza.Id, 2))));
+        await _factory.ChangeOrder(order.Id, awaiting => awaiting.StartPayment());
+
+        var response = await customer.CancelOrder(order.Id);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(3, await admin.StockOf(pizza.Id));
+        var current = await PedeAquiApiClient.Read<OrderResponse>(await customer.GetOrder(order.Id));
+        Assert.Equal(OrderStatus.AwaitingPayment, current.Status);
+    }
+
+    [Fact]
+    public async Task Updating_order_awaiting_payment_returns_409()
+    {
+        var admin = await Admin();
+        var pizza = await admin.CreateProductWithStock(stock: 5);
+        var customer = await Customer();
+        var order = await PedeAquiApiClient.Read<OrderResponse>(await customer.CreateOrder(RequestBuilder.Order((pizza.Id, 2))));
+        await _factory.ChangeOrder(order.Id, awaiting => awaiting.StartPayment());
+
+        var response = await customer.UpdateOrder(order.Id, RequestBuilder.Order((pizza.Id, 4)));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(3, await admin.StockOf(pizza.Id));
+    }
+
+    [Fact]
+    public async Task Confirmed_order_cannot_be_changed_or_cancelled()
     {
         var admin = await Admin();
         var pizza = await admin.CreateProductWithStock(stock: 5);
         var customer = await Customer();
         var order = await PedeAquiApiClient.Read<OrderResponse>(await customer.CreateOrder(RequestBuilder.Order((pizza.Id, 1))));
+        await _factory.ChangeOrder(order.Id, paid =>
+        {
+            paid.StartPayment();
+            paid.ConfirmPayment();
+        });
 
-        var response = await customer.ConfirmOrder(order.Id);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await customer.UpdateOrder(order.Id, RequestBuilder.Order((pizza.Id, 2)))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await customer.CancelOrder(order.Id)).StatusCode);
+        Assert.Equal(4, await admin.StockOf(pizza.Id));
     }
 
     [Fact]
-    public async Task Confirm_AsAdmin_ConfirmsAndBlocksFurtherChanges()
+    public async Task Order_status_round_trips_through_the_database_for_every_new_status()
     {
         var admin = await Admin();
-        var pizza = await admin.CreateProductWithStock(stock: 5);
+        var pizza = await admin.CreateProductWithStock(stock: 10);
         var customer = await Customer();
-        var order = await PedeAquiApiClient.Read<OrderResponse>(await customer.CreateOrder(RequestBuilder.Order((pizza.Id, 1))));
+        var awaiting = await PedeAquiApiClient.Read<OrderResponse>(await customer.CreateOrder(RequestBuilder.Order((pizza.Id, 1))));
+        var expired = await PedeAquiApiClient.Read<OrderResponse>(await customer.CreateOrder(RequestBuilder.Order((pizza.Id, 1))));
+        await _factory.ChangeOrder(awaiting.Id, order => order.StartPayment());
+        await _factory.ChangeOrder(expired.Id, order => order.Expire());
 
-        var response = await admin.ConfirmOrder(order.Id);
+        var awaitingRead = await PedeAquiApiClient.Read<OrderResponse>(await customer.GetOrder(awaiting.Id));
+        var expiredRead = await PedeAquiApiClient.Read<OrderResponse>(await customer.GetOrder(expired.Id));
 
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await customer.UpdateOrder(order.Id, RequestBuilder.Order((pizza.Id, 2)))).StatusCode);
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await customer.CancelOrder(order.Id)).StatusCode);
+        Assert.Equal(OrderStatus.AwaitingPayment, awaitingRead.Status);
+        Assert.Equal(OrderStatus.Expired, expiredRead.Status);
     }
 
     private async Task<PedeAquiApiClient> Admin()

@@ -6,6 +6,7 @@ using PedeAqui.IntegrationTests.Support;
 
 namespace PedeAqui.IntegrationTests.Stock;
 
+[Collection(IntegrationCollection.Name)]
 public class StockEndpointsTests : IClassFixture<PedeAquiWebApplicationFactory>
 {
     private readonly PedeAquiWebApplicationFactory _factory;

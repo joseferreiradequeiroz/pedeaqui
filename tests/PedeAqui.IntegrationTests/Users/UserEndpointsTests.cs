@@ -6,6 +6,7 @@ using PedeAqui.IntegrationTests.Support;
 
 namespace PedeAqui.IntegrationTests.Users;
 
+[Collection(IntegrationCollection.Name)]
 public class UserEndpointsTests : IClassFixture<PedeAquiWebApplicationFactory>
 {
     private readonly PedeAquiWebApplicationFactory _factory;

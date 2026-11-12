@@ -5,6 +5,7 @@ using PedeAqui.IntegrationTests.Support;
 
 namespace PedeAqui.IntegrationTests.Products;
 
+[Collection(IntegrationCollection.Name)]
 public class ProductEndpointsTests : IClassFixture<PedeAquiWebApplicationFactory>
 {
     private readonly PedeAquiWebApplicationFactory _factory;
