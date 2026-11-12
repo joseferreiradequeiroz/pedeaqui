@@ -18,7 +18,7 @@ public class RegisterUserUseCaseTests
     {
         var request = RequestBuilder.RegisterUser();
 
-        await CreateUseCase().Execute(request);
+        await CreateUseCase().Execute(request, CancellationToken.None);
 
         var stored = Assert.Single(_repository.Users);
         Assert.Equal(request.Email, stored.Email);
@@ -33,7 +33,7 @@ public class RegisterUserUseCaseTests
     {
         var request = RequestBuilder.RegisterUser();
 
-        var response = await CreateUseCase().Execute(request);
+        var response = await CreateUseCase().Execute(request, CancellationToken.None);
 
         Assert.Equal(request.Name, response.Name);
         Assert.Equal($"token-{_repository.Users[0].UserIdentifier}", response.Token);
@@ -43,11 +43,11 @@ public class RegisterUserUseCaseTests
     public async Task Execute_EmailAlreadyRegistered_ThrowsAndDoesNotCommit()
     {
         var existing = UserBuilder.Build();
-        await _repository.Add(existing);
+        await _repository.Add(existing, CancellationToken.None);
         var request = RequestBuilder.RegisterUser();
         request.Email = existing.Email;
 
-        var exception = await Assert.ThrowsAsync<ErrorOnValidationException>(() => CreateUseCase().Execute(request));
+        var exception = await Assert.ThrowsAsync<ErrorOnValidationException>(() => CreateUseCase().Execute(request, CancellationToken.None));
 
         Assert.Contains(ResourceErrorMessages.EMAIL_ALREADY_REGISTERED, exception.Errors);
         Assert.Single(_repository.Users);
@@ -61,7 +61,7 @@ public class RegisterUserUseCaseTests
         request.Name = string.Empty;
         request.Password = "fraca";
 
-        var exception = await Assert.ThrowsAsync<ErrorOnValidationException>(() => CreateUseCase().Execute(request));
+        var exception = await Assert.ThrowsAsync<ErrorOnValidationException>(() => CreateUseCase().Execute(request, CancellationToken.None));
 
         Assert.Equal(2, exception.Errors.Count);
         Assert.Empty(_repository.Users);

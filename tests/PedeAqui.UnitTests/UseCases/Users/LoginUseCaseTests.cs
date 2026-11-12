@@ -17,7 +17,7 @@ public class LoginUseCaseTests
         var user = UserBuilder.Build();
         user.Password = new FakePasswordEncripter().Encrypt(PASSWORD);
 
-        var response = await CreateUseCase(user).Execute(new LoginRequest { Email = user.Email, Password = PASSWORD });
+        var response = await CreateUseCase(user).Execute(new LoginRequest { Email = user.Email, Password = PASSWORD }, CancellationToken.None);
 
         Assert.Equal(user.Name, response.Name);
         Assert.Equal($"token-{user.UserIdentifier}", response.Token);
@@ -30,7 +30,7 @@ public class LoginUseCaseTests
         user.Password = new FakePasswordEncripter().Encrypt(PASSWORD);
 
         var exception = await Assert.ThrowsAsync<InvalidLoginException>(
-            () => CreateUseCase(user).Execute(new LoginRequest { Email = user.Email, Password = "Outra@123" }));
+            () => CreateUseCase(user).Execute(new LoginRequest { Email = user.Email, Password = "Outra@123" }, CancellationToken.None));
 
         Assert.Equal(ResourceErrorMessages.EMAIL_OR_PASSWORD_INVALID, exception.Message);
     }
@@ -39,7 +39,7 @@ public class LoginUseCaseTests
     public async Task Execute_UnknownEmail_ThrowsSameInvalidLogin()
     {
         await Assert.ThrowsAsync<InvalidLoginException>(
-            () => CreateUseCase().Execute(new LoginRequest { Email = "ninguem@pedeaqui.dev", Password = PASSWORD }));
+            () => CreateUseCase().Execute(new LoginRequest { Email = "ninguem@pedeaqui.dev", Password = PASSWORD }, CancellationToken.None));
     }
 
     private static LoginUseCase CreateUseCase(params PedeAqui.Domain.Entities.User[] users)

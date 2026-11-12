@@ -16,23 +16,25 @@ public sealed class InMemoryProductRepository : IProductReadOnlyRepository, IPro
 
     public IReadOnlyList<Product> Products => _products;
 
-    public Task Add(Product product)
+    public Task Add(Product product, CancellationToken cancellationToken)
     {
         Store(product);
         return Task.CompletedTask;
     }
 
-    public Task<List<Product>> GetAllActive() => Task.FromResult(_products.Where(product => product.Active).ToList());
+    public Task<List<Product>> GetAllActive(CancellationToken cancellationToken) => Task.FromResult(_products.Where(product => product.Active).ToList());
 
-    public Task<Product?> GetById(long id) => Task.FromResult(_products.FirstOrDefault(product => product.Id == id && product.Active));
+    public Task<Product?> GetById(long id, CancellationToken cancellationToken) => Task.FromResult(_products.FirstOrDefault(product => product.Id == id && product.Active));
 
-    public Task<List<Product>> GetByIds(IEnumerable<long> ids)
+    public Task<Product?> GetByIdForUpdate(long id, CancellationToken cancellationToken) => GetById(id, cancellationToken);
+
+    public Task<List<Product>> GetByIdsForUpdate(IEnumerable<long> ids, CancellationToken cancellationToken)
     {
         var wanted = ids.ToHashSet();
-        return Task.FromResult(_products.Where(product => wanted.Contains(product.Id)).ToList());
+        return Task.FromResult(_products.Where(product => wanted.Contains(product.Id)).OrderBy(product => product.Id).ToList());
     }
 
-    public Task<bool> ExistsWithSku(string sku, long? ignoreProductId = null)
+    public Task<bool> ExistsWithSku(string sku, long? ignoreProductId, CancellationToken cancellationToken)
     {
         return Task.FromResult(_products.Any(product => product.Sku == sku && product.Id != ignoreProductId));
     }

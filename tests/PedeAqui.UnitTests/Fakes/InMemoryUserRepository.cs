@@ -14,13 +14,13 @@ public sealed class InMemoryUserRepository : IUserReadOnlyRepository, IUserWrite
 
     public IReadOnlyList<User> Users => _users;
 
-    public Task Add(User user)
+    public Task Add(User user, CancellationToken cancellationToken)
     {
         _users.Add(user);
         return Task.CompletedTask;
     }
 
-    public Task<bool> ExistsUserWithEmail(string email) => Task.FromResult(_users.Any(user => user.Email == email));
+    public Task<bool> ExistsUserWithEmail(string email, CancellationToken cancellationToken) => Task.FromResult(_users.Any(user => user.Email == email));
 
-    public Task<User?> GetUserByEmail(string email) => Task.FromResult(_users.FirstOrDefault(user => user.Email == email));
+    public Task<User?> GetUserByEmail(string email, CancellationToken cancellationToken) => Task.FromResult(_users.FirstOrDefault(user => user.Email == email));
 }

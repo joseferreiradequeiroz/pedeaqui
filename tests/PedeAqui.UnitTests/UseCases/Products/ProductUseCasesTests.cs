@@ -14,6 +14,12 @@ namespace PedeAqui.UnitTests.UseCases.Products;
 public class ProductUseCasesTests
 {
     private readonly FakeUnitOfWork _unitOfWork = new();
+    private readonly FakeProductCacheInvalidator _cache;
+
+    public ProductUseCasesTests()
+    {
+        _cache = new FakeProductCacheInvalidator(_unitOfWork);
+    }
 
     [Fact]
     public async Task Register_ValidRequest_StoresProductWithZeroStock()
@@ -21,7 +27,7 @@ public class ProductUseCasesTests
         var repository = new InMemoryProductRepository();
         var request = RequestBuilder.Product();
 
-        var response = await new RegisterProductUseCase(repository, repository, _unitOfWork, MapperFactory.Create()).Execute(request);
+        var response = await new RegisterProductUseCase(repository, repository, _unitOfWork, _cache, MapperFactory.Create()).Execute(request, CancellationToken.None);
 
         var stored = Assert.Single(repository.Products);
         Assert.Equal(stored.Id, response.Id);
@@ -31,6 +37,8 @@ public class ProductUseCasesTests
         Assert.Equal(0, stored.StockQuantity);
         Assert.True(stored.Active);
         Assert.Equal(1, _unitOfWork.CommitCount);
+        Assert.Equal([stored.Id], _cache.InvalidatedProductIds);
+        Assert.Equal(1, _cache.CommitCountAtLastInvalidation);
     }
 
     [Fact]
@@ -42,11 +50,12 @@ public class ProductUseCasesTests
         request.Sku = existing.Sku;
 
         var exception = await Assert.ThrowsAsync<ErrorOnValidationException>(
-            () => new RegisterProductUseCase(repository, repository, _unitOfWork, MapperFactory.Create()).Execute(request));
+            () => new RegisterProductUseCase(repository, repository, _unitOfWork, _cache, MapperFactory.Create()).Execute(request, CancellationToken.None));
 
         Assert.Contains(ResourceErrorMessages.PRODUCT_SKU_ALREADY_EXISTS, exception.Errors);
         Assert.Single(repository.Products);
         Assert.Equal(0, _unitOfWork.CommitCount);
+        Assert.Equal(0, _cache.InvalidationCount);
     }
 
     [Fact]
@@ -56,13 +65,15 @@ public class ProductUseCasesTests
         var repository = new InMemoryProductRepository(product);
         var request = RequestBuilder.Product();
 
-        await new UpdateProductUseCase(repository, repository, _unitOfWork, MapperFactory.Create()).Execute(product.Id, request);
+        await new UpdateProductUseCase(repository, repository, _unitOfWork, _cache, MapperFactory.Create()).Execute(product.Id, request, CancellationToken.None);
 
         Assert.Equal(request.Name, product.Name);
         Assert.Equal(request.Price, product.Price);
         Assert.Equal(request.Sku, product.Sku);
         Assert.Equal(7, product.StockQuantity);
         Assert.Equal(1, _unitOfWork.CommitCount);
+        Assert.Equal([product.Id], _cache.InvalidatedProductIds);
+        Assert.Equal(1, _cache.CommitCountAtLastInvalidation);
     }
 
     [Fact]
@@ -73,7 +84,7 @@ public class ProductUseCasesTests
         var request = RequestBuilder.Product();
         request.Sku = product.Sku;
 
-        await new UpdateProductUseCase(repository, repository, _unitOfWork, MapperFactory.Create()).Execute(product.Id, request);
+        await new UpdateProductUseCase(repository, repository, _unitOfWork, _cache, MapperFactory.Create()).Execute(product.Id, request, CancellationToken.None);
 
         Assert.Equal(1, _unitOfWork.CommitCount);
     }
@@ -88,7 +99,7 @@ public class ProductUseCasesTests
         request.Sku = other.Sku;
 
         var exception = await Assert.ThrowsAsync<ErrorOnValidationException>(
-            () => new UpdateProductUseCase(repository, repository, _unitOfWork, MapperFactory.Create()).Execute(product.Id, request));
+            () => new UpdateProductUseCase(repository, repository, _unitOfWork, _cache, MapperFactory.Create()).Execute(product.Id, request, CancellationToken.None));
 
         Assert.Contains(ResourceErrorMessages.PRODUCT_SKU_ALREADY_EXISTS, exception.Errors);
     }
@@ -99,7 +110,7 @@ public class ProductUseCasesTests
         var repository = new InMemoryProductRepository();
 
         var exception = await Assert.ThrowsAsync<NotFoundException>(
-            () => new UpdateProductUseCase(repository, repository, _unitOfWork, MapperFactory.Create()).Execute(42, RequestBuilder.Product()));
+            () => new UpdateProductUseCase(repository, repository, _unitOfWork, _cache, MapperFactory.Create()).Execute(42, RequestBuilder.Product(), CancellationToken.None));
 
         Assert.Equal(ResourceErrorMessages.PRODUCT_NOT_FOUND, exception.Message);
     }
@@ -110,11 +121,13 @@ public class ProductUseCasesTests
         var product = ProductBuilder.Build();
         var repository = new InMemoryProductRepository(product);
 
-        await new DeleteProductUseCase(repository, _unitOfWork).Execute(product.Id);
+        await new DeleteProductUseCase(repository, _unitOfWork, _cache).Execute(product.Id, CancellationToken.None);
 
         Assert.Single(repository.Products);
         Assert.False(product.Active);
         Assert.Equal(1, _unitOfWork.CommitCount);
+        Assert.Equal([product.Id], _cache.InvalidatedProductIds);
+        Assert.Equal(1, _cache.CommitCountAtLastInvalidation);
     }
 
     [Fact]
@@ -123,7 +136,9 @@ public class ProductUseCasesTests
         var product = ProductBuilder.Inactive();
         var repository = new InMemoryProductRepository(product);
 
-        await Assert.ThrowsAsync<NotFoundException>(() => new DeleteProductUseCase(repository, _unitOfWork).Execute(product.Id));
+        await Assert.ThrowsAsync<NotFoundException>(() => new DeleteProductUseCase(repository, _unitOfWork, _cache).Execute(product.Id, CancellationToken.None));
+
+        Assert.Equal(0, _cache.InvalidationCount);
     }
 
     [Fact]
@@ -133,7 +148,7 @@ public class ProductUseCasesTests
         var inactive = ProductBuilder.Inactive(id: 2);
         var repository = new InMemoryProductRepository(active, inactive);
 
-        var response = await new GetAllProductsUseCase(repository, MapperFactory.Create()).Execute();
+        var response = await new GetAllProductsUseCase(repository, MapperFactory.Create()).Execute(CancellationToken.None);
 
         var returned = Assert.Single(response.Products);
         Assert.Equal(active.Id, returned.Id);
@@ -146,6 +161,6 @@ public class ProductUseCasesTests
         var product = ProductBuilder.Inactive();
         var repository = new InMemoryProductRepository(product);
 
-        await Assert.ThrowsAsync<NotFoundException>(() => new GetProductByIdUseCase(repository, MapperFactory.Create()).Execute(product.Id));
+        await Assert.ThrowsAsync<NotFoundException>(() => new GetProductByIdUseCase(repository, MapperFactory.Create()).Execute(product.Id, CancellationToken.None));
     }
 }

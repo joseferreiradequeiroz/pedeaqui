@@ -16,16 +16,51 @@ public sealed class InMemoryOrderRepository : IOrderReadOnlyRepository, IOrderWr
     }
 
     public IReadOnlyList<Order> Orders => _orders;
+    public Action<Order>? WhenLoadedForSystem { get; set; }
 
-    public Task Add(Order order)
+    public Task Add(Order order, CancellationToken cancellationToken)
     {
         Store(order);
         return Task.CompletedTask;
     }
 
-    public Task<List<Order>> GetAll(User loggedUser) => Task.FromResult(VisibleTo(loggedUser).ToList());
+    public Task<List<Order>> GetAll(User loggedUser, CancellationToken cancellationToken) => Task.FromResult(VisibleTo(loggedUser).ToList());
 
-    public Task<Order?> GetById(User loggedUser, long id) => Task.FromResult(VisibleTo(loggedUser).FirstOrDefault(order => order.Id == id));
+    public Task<Order?> GetById(User loggedUser, long id, CancellationToken cancellationToken) => Task.FromResult(VisibleTo(loggedUser).FirstOrDefault(order => order.Id == id));
+
+    public Task<Order?> GetByIdForSystem(long id, CancellationToken cancellationToken)
+    {
+        var order = _orders.FirstOrDefault(order => order.Id == id);
+
+        if (order is not null)
+            WhenLoadedForSystem?.Invoke(order);
+
+        return Task.FromResult(order);
+    }
+
+    public Task<List<long>> GetPendingCreatedBefore(DateTime cutoff, int limit, CancellationToken cancellationToken)
+    {
+        var ids = _orders
+            .Where(order => order.Status == OrderStatus.Pending && order.CreatedAt < cutoff)
+            .OrderBy(order => order.CreatedAt)
+            .Take(limit)
+            .Select(order => order.Id)
+            .ToList();
+
+        return Task.FromResult(ids);
+    }
+
+    public Task<List<long>> GetAwaitingPaymentStartedBefore(DateTime cutoff, int limit, CancellationToken cancellationToken)
+    {
+        var ids = _orders
+            .Where(order => order.Status == OrderStatus.AwaitingPayment && order.PaymentStartedAt < cutoff)
+            .OrderBy(order => order.PaymentStartedAt)
+            .Take(limit)
+            .Select(order => order.Id)
+            .ToList();
+
+        return Task.FromResult(ids);
+    }
 
     public void Update(Order order)
     {

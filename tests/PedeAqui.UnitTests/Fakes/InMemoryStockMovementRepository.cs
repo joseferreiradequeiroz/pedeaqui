@@ -10,20 +10,20 @@ public sealed class InMemoryStockMovementRepository : IStockMovementRepository
 
     public IReadOnlyList<StockMovement> Movements => _movements;
 
-    public Task Add(StockMovement movement)
+    public Task Add(StockMovement movement, CancellationToken cancellationToken)
     {
         movement.Id = _nextId++;
         _movements.Add(movement);
         return Task.CompletedTask;
     }
 
-    public async Task AddRange(IEnumerable<StockMovement> movements)
+    public async Task AddRange(IEnumerable<StockMovement> movements, CancellationToken cancellationToken)
     {
         foreach (var movement in movements)
-            await Add(movement);
+            await Add(movement, cancellationToken);
     }
 
-    public Task<List<StockMovement>> GetByProduct(long productId)
+    public Task<List<StockMovement>> GetByProduct(long productId, CancellationToken cancellationToken)
     {
         return Task.FromResult(_movements
             .Where(movement => movement.ProductId == productId)

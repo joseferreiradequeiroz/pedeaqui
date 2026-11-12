@@ -14,6 +14,12 @@ public class StockUseCasesTests
 {
     private readonly InMemoryStockMovementRepository _movements = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
+    private readonly FakeProductCacheInvalidator _cache;
+
+    public StockUseCasesTests()
+    {
+        _cache = new FakeProductCacheInvalidator(_unitOfWork);
+    }
 
     [Fact]
     public async Task Entry_ValidRequest_IncreasesStockAndRecordsMovement()
@@ -21,7 +27,7 @@ public class StockUseCasesTests
         var product = ProductBuilder.Build(stock: 10);
         var request = RequestBuilder.StockMovement(5);
 
-        var response = await CreateEntryUseCase(product).Execute(product.Id, request);
+        var response = await CreateEntryUseCase(product).Execute(product.Id, request, CancellationToken.None);
 
         Assert.Equal(15, product.StockQuantity);
         var movement = Assert.Single(_movements.Movements);
@@ -29,6 +35,8 @@ public class StockUseCasesTests
         Assert.Equal(StockMovementType.Entry, response.Type);
         Assert.Equal(5, response.Quantity);
         Assert.Equal(1, _unitOfWork.CommitCount);
+        Assert.Equal([product.Id], _cache.InvalidatedProductIds);
+        Assert.Equal(1, _cache.CommitCountAtLastInvalidation);
     }
 
     [Fact]
@@ -37,7 +45,7 @@ public class StockUseCasesTests
         var product = ProductBuilder.Build(stock: 10);
 
         await Assert.ThrowsAsync<ErrorOnValidationException>(
-            () => CreateEntryUseCase(product).Execute(product.Id, RequestBuilder.StockMovement(0)));
+            () => CreateEntryUseCase(product).Execute(product.Id, RequestBuilder.StockMovement(0), CancellationToken.None));
 
         Assert.Equal(10, product.StockQuantity);
         Assert.Empty(_movements.Movements);
@@ -48,7 +56,7 @@ public class StockUseCasesTests
     public async Task Entry_UnknownProduct_ThrowsNotFound()
     {
         var exception = await Assert.ThrowsAsync<NotFoundException>(
-            () => CreateEntryUseCase().Execute(42, RequestBuilder.StockMovement()));
+            () => CreateEntryUseCase().Execute(42, RequestBuilder.StockMovement(), CancellationToken.None));
 
         Assert.Equal(ResourceErrorMessages.PRODUCT_NOT_FOUND, exception.Message);
     }
@@ -58,11 +66,13 @@ public class StockUseCasesTests
     {
         var product = ProductBuilder.Build(stock: 10);
 
-        var response = await CreateExitUseCase(product).Execute(product.Id, RequestBuilder.StockMovement(4));
+        var response = await CreateExitUseCase(product).Execute(product.Id, RequestBuilder.StockMovement(4), CancellationToken.None);
 
         Assert.Equal(6, product.StockQuantity);
         Assert.Equal(StockMovementType.Exit, response.Type);
         Assert.Equal(1, _unitOfWork.CommitCount);
+        Assert.Equal([product.Id], _cache.InvalidatedProductIds);
+        Assert.Equal(1, _cache.CommitCountAtLastInvalidation);
     }
 
     [Fact]
@@ -71,23 +81,24 @@ public class StockUseCasesTests
         var product = ProductBuilder.Build(stock: 2);
 
         var exception = await Assert.ThrowsAsync<BusinessRuleException>(
-            () => CreateExitUseCase(product).Execute(product.Id, RequestBuilder.StockMovement(3)));
+            () => CreateExitUseCase(product).Execute(product.Id, RequestBuilder.StockMovement(3), CancellationToken.None));
 
         Assert.StartsWith(ResourceErrorMessages.INSUFFICIENT_STOCK, exception.Message);
         Assert.Equal(2, product.StockQuantity);
         Assert.Empty(_movements.Movements);
         Assert.Equal(0, _unitOfWork.CommitCount);
+        Assert.Equal(0, _cache.InvalidationCount);
     }
 
     [Fact]
     public async Task GetByProduct_ReturnsBalanceAndMovementsNewestFirst()
     {
         var product = ProductBuilder.Build(stock: 0);
-        await _movements.Add(product.AddStock(10, "Compra"));
-        await _movements.Add(product.RemoveStock(3, "Avaria"));
+        await _movements.Add(product.AddStock(10, "Compra"), CancellationToken.None);
+        await _movements.Add(product.RemoveStock(3, "Avaria"), CancellationToken.None);
         var repository = new InMemoryProductRepository(product);
 
-        var response = await new GetStockByProductUseCase(repository, _movements, MapperFactory.Create()).Execute(product.Id);
+        var response = await new GetStockByProductUseCase(repository, _movements, MapperFactory.Create()).Execute(product.Id, CancellationToken.None);
 
         Assert.Equal(7, response.Quantity);
         Assert.Equal(product.Name, response.ProductName);
@@ -96,11 +107,11 @@ public class StockUseCasesTests
 
     private RegisterStockEntryUseCase CreateEntryUseCase(params PedeAqui.Domain.Entities.Product[] products)
     {
-        return new RegisterStockEntryUseCase(new InMemoryProductRepository(products), _movements, _unitOfWork, MapperFactory.Create());
+        return new RegisterStockEntryUseCase(new InMemoryProductRepository(products), _movements, _unitOfWork, _cache, MapperFactory.Create());
     }
 
     private RegisterStockExitUseCase CreateExitUseCase(params PedeAqui.Domain.Entities.Product[] products)
     {
-        return new RegisterStockExitUseCase(new InMemoryProductRepository(products), _movements, _unitOfWork, MapperFactory.Create());
+        return new RegisterStockExitUseCase(new InMemoryProductRepository(products), _movements, _unitOfWork, _cache, MapperFactory.Create());
     }
 }

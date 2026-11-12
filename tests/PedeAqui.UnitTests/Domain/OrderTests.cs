@@ -68,17 +68,6 @@ public class OrderTests
     }
 
     [Fact]
-    public void Confirm_PendingOrder_ChangesStatus()
-    {
-        var order = new Order();
-
-        order.Confirm();
-
-        Assert.Equal(OrderStatus.Confirmed, order.Status);
-        Assert.NotNull(order.UpdatedAt);
-    }
-
-    [Fact]
     public void Cancel_PendingOrder_ChangesStatus()
     {
         var order = new Order();
@@ -86,40 +75,209 @@ public class OrderTests
         order.Cancel();
 
         Assert.Equal(OrderStatus.Cancelled, order.Status);
+        Assert.NotNull(order.UpdatedAt);
     }
 
     [Fact]
-    public void Cancel_ConfirmedOrder_Throws()
+    public void Expire_PendingOrder_ChangesStatus()
     {
         var order = new Order();
-        order.Confirm();
 
-        var exception = Assert.Throws<BusinessRuleException>(order.Cancel);
+        order.Expire();
 
-        Assert.Equal(ResourceErrorMessages.ORDER_CANNOT_BE_CANCELLED, exception.Message);
+        Assert.Equal(OrderStatus.Expired, order.Status);
+        Assert.NotNull(order.UpdatedAt);
+    }
+
+    [Fact]
+    public void StartPayment_PendingOrder_MovesToAwaitingPaymentAndStampsPaymentStart()
+    {
+        var order = new Order();
+
+        order.StartPayment();
+
+        Assert.Equal(OrderStatus.AwaitingPayment, order.Status);
+        Assert.NotNull(order.PaymentStartedAt);
+    }
+
+    [Fact]
+    public void ConfirmPayment_AwaitingPaymentOrder_Confirms()
+    {
+        var order = new Order();
+        order.StartPayment();
+
+        order.ConfirmPayment();
+
         Assert.Equal(OrderStatus.Confirmed, order.Status);
     }
 
     [Fact]
-    public void Confirm_CancelledOrder_Throws()
+    public void FailPayment_AwaitingPaymentOrder_EndsCancelled()
     {
         var order = new Order();
-        order.Cancel();
+        order.StartPayment();
 
-        var exception = Assert.Throws<BusinessRuleException>(order.Confirm);
+        order.FailPayment();
 
-        Assert.Equal(ResourceErrorMessages.ORDER_CANNOT_BE_CONFIRMED, exception.Message);
+        Assert.Equal(OrderStatus.Cancelled, order.Status);
     }
 
     [Fact]
-    public void SetItem_CancelledOrder_Throws()
+    public void ConfirmPayment_requires_AwaitingPayment()
+    {
+        var order = new Order();
+
+        var exception = Assert.Throws<ConflictException>(order.ConfirmPayment);
+
+        Assert.Equal(TransitionMessage(OrderStatus.Pending, OrderStatus.Confirmed), exception.Message);
+        Assert.Equal(OrderStatus.Pending, order.Status);
+    }
+
+    [Fact]
+    public void FailPayment_requires_AwaitingPayment()
+    {
+        var order = new Order();
+
+        Assert.Throws<ConflictException>(order.FailPayment);
+
+        Assert.Equal(OrderStatus.Pending, order.Status);
+    }
+
+    [Fact]
+    public void Cancel_from_AwaitingPayment_throws_conflict()
+    {
+        var order = new Order();
+        order.StartPayment();
+
+        var exception = Assert.Throws<ConflictException>(order.Cancel);
+
+        Assert.Equal(TransitionMessage(OrderStatus.AwaitingPayment, OrderStatus.Cancelled), exception.Message);
+        Assert.Equal(OrderStatus.AwaitingPayment, order.Status);
+    }
+
+    [Fact]
+    public void Expire_from_AwaitingPayment_throws_conflict()
+    {
+        var order = new Order();
+        order.StartPayment();
+
+        var exception = Assert.Throws<ConflictException>(order.Expire);
+
+        Assert.Equal(TransitionMessage(OrderStatus.AwaitingPayment, OrderStatus.Expired), exception.Message);
+    }
+
+    [Fact]
+    public void StartPayment_from_Cancelled_throws_conflict()
     {
         var order = new Order();
         order.Cancel();
 
-        var exception = Assert.Throws<BusinessRuleException>(() => order.SetItem(ProductBuilder.Build(), 1));
+        var exception = Assert.Throws<ConflictException>(order.StartPayment);
+
+        Assert.Equal(TransitionMessage(OrderStatus.Cancelled, OrderStatus.AwaitingPayment), exception.Message);
+        Assert.Null(order.PaymentStartedAt);
+    }
+
+    [Fact]
+    public void Cancel_from_Cancelled_throws_conflict()
+    {
+        var order = new Order();
+        order.Cancel();
+
+        var exception = Assert.Throws<ConflictException>(order.Cancel);
+
+        Assert.Equal(TransitionMessage(OrderStatus.Cancelled, OrderStatus.Cancelled), exception.Message);
+    }
+
+    [Fact]
+    public void Cancel_from_Confirmed_throws_conflict()
+    {
+        var order = ConfirmedOrder();
+
+        Assert.Throws<ConflictException>(order.Cancel);
+
+        Assert.Equal(OrderStatus.Confirmed, order.Status);
+    }
+
+    [Fact]
+    public void Expire_from_Expired_throws_conflict()
+    {
+        var order = new Order();
+        order.Expire();
+
+        Assert.Throws<ConflictException>(order.Expire);
+    }
+
+    [Theory]
+    [InlineData(OrderStatus.Pending, false)]
+    [InlineData(OrderStatus.AwaitingPayment, false)]
+    [InlineData(OrderStatus.Confirmed, true)]
+    [InlineData(OrderStatus.Cancelled, true)]
+    [InlineData(OrderStatus.Expired, true)]
+    public void IsFinal_is_true_only_for_confirmed_cancelled_and_expired(OrderStatus status, bool expected)
+    {
+        var order = OrderInStatus(status);
+
+        Assert.Equal(expected, order.IsFinal);
+    }
+
+    [Fact]
+    public void EnsureCanBeChanged_AwaitingPayment_throws_conflict()
+    {
+        var order = new Order();
+        order.StartPayment();
+
+        var exception = Assert.Throws<ConflictException>(order.EnsureCanBeChanged);
+
+        Assert.Equal(ResourceErrorMessages.ORDER_CANNOT_BE_CHANGED, exception.Message);
+    }
+
+    [Fact]
+    public void SetItem_CancelledOrder_ThrowsConflict()
+    {
+        var order = new Order();
+        order.Cancel();
+
+        var exception = Assert.Throws<ConflictException>(() => order.SetItem(ProductBuilder.Build(), 1));
 
         Assert.Equal(ResourceErrorMessages.ORDER_CANNOT_BE_CHANGED, exception.Message);
         Assert.Empty(order.Items);
+    }
+
+    private static string TransitionMessage(OrderStatus from, OrderStatus to)
+    {
+        return string.Format(ResourceErrorMessages.ORDER_INVALID_STATUS_TRANSITION, from, to);
+    }
+
+    private static Order ConfirmedOrder()
+    {
+        var order = new Order();
+        order.StartPayment();
+        order.ConfirmPayment();
+        return order;
+    }
+
+    private static Order OrderInStatus(OrderStatus status)
+    {
+        var order = new Order();
+
+        switch (status)
+        {
+            case OrderStatus.AwaitingPayment:
+                order.StartPayment();
+                break;
+            case OrderStatus.Confirmed:
+                order.StartPayment();
+                order.ConfirmPayment();
+                break;
+            case OrderStatus.Cancelled:
+                order.Cancel();
+                break;
+            case OrderStatus.Expired:
+                order.Expire();
+                break;
+        }
+
+        return order;
     }
 }
