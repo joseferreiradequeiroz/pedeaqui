@@ -12,6 +12,7 @@ internal class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.Property(order => order.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(order => order.Total).HasPrecision(18, 2);
+        builder.Property<uint>("xmin").IsRowVersion();
 
         builder.HasOne(order => order.User)
             .WithMany()

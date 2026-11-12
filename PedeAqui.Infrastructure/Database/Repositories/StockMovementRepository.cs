@@ -13,23 +13,23 @@ internal class StockMovementRepository : IStockMovementRepository
         _dbContext = dbContext;
     }
 
-    public async Task Add(StockMovement movement)
+    public async Task Add(StockMovement movement, CancellationToken cancellationToken)
     {
-        await _dbContext.StockMovements.AddAsync(movement);
+        await _dbContext.StockMovements.AddAsync(movement, cancellationToken);
     }
 
-    public async Task AddRange(IEnumerable<StockMovement> movements)
+    public async Task AddRange(IEnumerable<StockMovement> movements, CancellationToken cancellationToken)
     {
-        await _dbContext.StockMovements.AddRangeAsync(movements);
+        await _dbContext.StockMovements.AddRangeAsync(movements, cancellationToken);
     }
 
-    public async Task<List<StockMovement>> GetByProduct(long productId)
+    public async Task<List<StockMovement>> GetByProduct(long productId, CancellationToken cancellationToken)
     {
         return await _dbContext.StockMovements
             .AsNoTracking()
             .Where(movement => movement.ProductId == productId)
             .OrderByDescending(movement => movement.CreatedAt)
             .ThenByDescending(movement => movement.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 }

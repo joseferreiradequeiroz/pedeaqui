@@ -14,30 +14,59 @@ internal class OrderRepository : IOrderReadOnlyRepository, IOrderWriteOnlyReposi
         _dbContext = dbContext;
     }
 
-    public async Task Add(Order order)
+    public async Task Add(Order order, CancellationToken cancellationToken)
     {
-        await _dbContext.Orders.AddAsync(order);
+        await _dbContext.Orders.AddAsync(order, cancellationToken);
     }
 
-    public async Task<List<Order>> GetAll(User loggedUser)
+    public async Task<List<Order>> GetAll(User loggedUser, CancellationToken cancellationToken)
     {
         return await VisibleTo(loggedUser, _dbContext.Orders.AsNoTracking())
             .OrderByDescending(order => order.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
-    async Task<Order?> IOrderReadOnlyRepository.GetById(User loggedUser, long id)
+    async Task<Order?> IOrderReadOnlyRepository.GetById(User loggedUser, long id, CancellationToken cancellationToken)
     {
         return await VisibleTo(loggedUser, _dbContext.Orders.AsNoTracking())
             .Include(order => order.Items)
-            .FirstOrDefaultAsync(order => order.Id == id);
+            .FirstOrDefaultAsync(order => order.Id == id, cancellationToken);
     }
 
-    async Task<Order?> IOrderUpdateOnlyRepository.GetById(User loggedUser, long id)
+    async Task<Order?> IOrderUpdateOnlyRepository.GetById(User loggedUser, long id, CancellationToken cancellationToken)
     {
         return await VisibleTo(loggedUser, _dbContext.Orders)
             .Include(order => order.Items)
-            .FirstOrDefaultAsync(order => order.Id == id);
+            .FirstOrDefaultAsync(order => order.Id == id, cancellationToken);
+    }
+
+    public async Task<Order?> GetByIdForSystem(long id, CancellationToken cancellationToken)
+    {
+        return await _dbContext.Orders
+            .Include(order => order.Items)
+            .FirstOrDefaultAsync(order => order.Id == id, cancellationToken);
+    }
+
+    public async Task<List<long>> GetPendingCreatedBefore(DateTime cutoff, int limit, CancellationToken cancellationToken)
+    {
+        return await _dbContext.Orders
+            .AsNoTracking()
+            .Where(order => order.Status == OrderStatus.Pending && order.CreatedAt < cutoff)
+            .OrderBy(order => order.CreatedAt)
+            .Select(order => order.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<long>> GetAwaitingPaymentStartedBefore(DateTime cutoff, int limit, CancellationToken cancellationToken)
+    {
+        return await _dbContext.Orders
+            .AsNoTracking()
+            .Where(order => order.Status == OrderStatus.AwaitingPayment && order.PaymentStartedAt < cutoff)
+            .OrderBy(order => order.PaymentStartedAt)
+            .Select(order => order.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
     }
 
     public void Update(Order order)

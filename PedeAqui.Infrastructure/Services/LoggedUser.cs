@@ -19,13 +19,13 @@ internal class LoggedUser : ILoggedUser
         _tokenProvider = tokenProvider;
     }
 
-    public async Task<User> Get()
+    public async Task<User> Get(CancellationToken cancellationToken)
     {
         var token = new JwtSecurityTokenHandler().ReadJwtToken(_tokenProvider.TokenOnRequest());
         var identifier = Guid.Parse(token.Claims.First(claim => claim.Type == ClaimTypes.Sid).Value);
 
         return await _dbContext.Users
             .AsNoTracking()
-            .FirstAsync(user => user.UserIdentifier == identifier);
+            .FirstAsync(user => user.UserIdentifier == identifier, cancellationToken);
     }
 }

@@ -9,7 +9,7 @@ namespace PedeAqui.Infrastructure.Database;
 
 public static class AdminSeeder
 {
-    public static async Task Seed(IServiceProvider services, IConfiguration configuration)
+    public static async Task Seed(IServiceProvider services, IConfiguration configuration, CancellationToken cancellationToken)
     {
         var email = configuration["Settings:Admin:Email"];
         var password = configuration["Settings:Admin:Password"];
@@ -19,7 +19,7 @@ public static class AdminSeeder
 
         var dbContext = services.GetRequiredService<PedeAquiDbContext>();
 
-        if (await dbContext.Users.AnyAsync(user => user.Email == email))
+        if (await dbContext.Users.AnyAsync(user => user.Email == email, cancellationToken))
             return;
 
         var passwordEncripter = services.GetRequiredService<IPasswordEncripter>();
@@ -31,8 +31,8 @@ public static class AdminSeeder
             Password = passwordEncripter.Encrypt(password),
             UserIdentifier = Guid.NewGuid(),
             Role = Roles.ADMIN
-        });
+        }, cancellationToken);
 
-        await dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }
