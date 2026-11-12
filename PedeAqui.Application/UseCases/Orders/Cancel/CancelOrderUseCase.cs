@@ -1,8 +1,8 @@
+using PedeAqui.Application.Services;
 using PedeAqui.Domain.Entities;
+using PedeAqui.Domain.Caching;
 using PedeAqui.Domain.Repositories;
 using PedeAqui.Domain.Repositories.Orders;
-using PedeAqui.Domain.Repositories.Products;
-using PedeAqui.Domain.Repositories.Stock;
 using PedeAqui.Domain.Services;
 using PedeAqui.Exception;
 using PedeAqui.Exception.ExceptionsBase;
@@ -12,45 +12,46 @@ namespace PedeAqui.Application.UseCases.Orders.Cancel;
 public class CancelOrderUseCase : ICancelOrderUseCase
 {
     private readonly IOrderUpdateOnlyRepository _orderRepository;
-    private readonly IProductUpdateOnlyRepository _productRepository;
-    private readonly IStockMovementRepository _movementRepository;
+    private readonly IOrderStockReleaser _stockReleaser;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IProductCacheInvalidator _cacheInvalidator;
     private readonly ILoggedUser _loggedUser;
 
     public CancelOrderUseCase(
         IOrderUpdateOnlyRepository orderRepository,
-        IProductUpdateOnlyRepository productRepository,
-        IStockMovementRepository movementRepository,
+        IOrderStockReleaser stockReleaser,
         IUnitOfWork unitOfWork,
+        IProductCacheInvalidator cacheInvalidator,
         ILoggedUser loggedUser)
     {
         _orderRepository = orderRepository;
-        _productRepository = productRepository;
-        _movementRepository = movementRepository;
+        _stockReleaser = stockReleaser;
         _unitOfWork = unitOfWork;
+        _cacheInvalidator = cacheInvalidator;
         _loggedUser = loggedUser;
     }
 
-    public async Task Execute(long id)
+    public async Task Execute(long id, CancellationToken cancellationToken)
     {
-        var user = await _loggedUser.Get();
-        var order = await _orderRepository.GetById(user, id)
+        var user = await _loggedUser.Get(cancellationToken);
+
+        var productIds = await _unitOfWork.ExecuteInTransaction(
+            transactionCancellationToken => CancelOrder(user, id, transactionCancellationToken),
+            cancellationToken);
+        await _cacheInvalidator.Invalidate(productIds, CancellationToken.None);
+    }
+
+    private async Task<IReadOnlyCollection<long>> CancelOrder(User user, long id, CancellationToken cancellationToken)
+    {
+        var order = await _orderRepository.GetById(user, id, cancellationToken)
             ?? throw new NotFoundException(ResourceErrorMessages.ORDER_NOT_FOUND);
 
         order.Cancel();
 
-        var products = await _productRepository.GetByIds(order.Items.Select(item => item.ProductId));
-        var movements = new List<StockMovement>();
-
-        foreach (var item in order.Items)
-        {
-            var product = products.First(p => p.Id == item.ProductId);
-            movements.Add(product.AddStock(item.Quantity, $"Cancelamento do pedido #{order.Id}", order));
-            _productRepository.Update(product);
-        }
+        await _stockReleaser.Release(order, $"Cancelamento do pedido #{order.Id}", cancellationToken);
 
         _orderRepository.Update(order);
-        await _movementRepository.AddRange(movements);
-        await _unitOfWork.Commit();
+
+        return order.Items.Select(item => item.ProductId).ToList();
     }
 }

@@ -20,10 +20,10 @@ public class GetOrderByIdUseCase : IGetOrderByIdUseCase
         _mapper = mapper;
     }
 
-    public async Task<OrderResponse> Execute(long id)
+    public async Task<OrderResponse> Execute(long id, CancellationToken cancellationToken)
     {
-        var user = await _loggedUser.Get();
-        var order = await _orderRepository.GetById(user, id)
+        var user = await _loggedUser.Get(cancellationToken);
+        var order = await _orderRepository.GetById(user, id, cancellationToken)
             ?? throw new NotFoundException(ResourceErrorMessages.ORDER_NOT_FOUND);
 
         return _mapper.Map<OrderResponse>(order);

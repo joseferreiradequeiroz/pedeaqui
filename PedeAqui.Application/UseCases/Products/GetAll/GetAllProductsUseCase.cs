@@ -15,9 +15,9 @@ public class GetAllProductsUseCase : IGetAllProductsUseCase
         _mapper = mapper;
     }
 
-    public async Task<ProductsResponse> Execute()
+    public async Task<ProductsResponse> Execute(CancellationToken cancellationToken)
     {
-        var products = await _readOnlyRepository.GetAllActive();
+        var products = await _readOnlyRepository.GetAllActive(cancellationToken);
 
         return new ProductsResponse
         {

@@ -5,5 +5,5 @@ namespace PedeAqui.Application.UseCases.Orders.Update;
 
 public interface IUpdateOrderUseCase
 {
-    Task<OrderResponse> Execute(long id, OrderRequest request);
+    Task<OrderResponse> Execute(long id, OrderRequest request, CancellationToken cancellationToken);
 }

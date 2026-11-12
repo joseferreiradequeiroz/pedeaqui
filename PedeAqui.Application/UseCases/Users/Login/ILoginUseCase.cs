@@ -5,5 +5,5 @@ namespace PedeAqui.Application.UseCases.Users.Login;
 
 public interface ILoginUseCase
 {
-    Task<LoginResponse> Execute(LoginRequest request);
+    Task<LoginResponse> Execute(LoginRequest request, CancellationToken cancellationToken);
 }

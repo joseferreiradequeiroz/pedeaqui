@@ -5,5 +5,5 @@ namespace PedeAqui.Application.UseCases.Users.Register;
 
 public interface IRegisterUserUseCase
 {
-    Task<RegisterUserResponse> Execute(RegisterUserRequest request);
+    Task<RegisterUserResponse> Execute(RegisterUserRequest request, CancellationToken cancellationToken);
 }

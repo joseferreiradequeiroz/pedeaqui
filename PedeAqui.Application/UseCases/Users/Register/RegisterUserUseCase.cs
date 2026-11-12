@@ -39,17 +39,17 @@ public class RegisterUserUseCase : IRegisterUserUseCase
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<RegisterUserResponse> Execute(RegisterUserRequest request)
+    public async Task<RegisterUserResponse> Execute(RegisterUserRequest request, CancellationToken cancellationToken)
     {
-        await Validate(request);
+        await Validate(request, cancellationToken);
 
         var user = _mapper.Map<User>(request);
         user.Password = _passwordEncripter.Encrypt(request.Password);
         user.UserIdentifier = Guid.NewGuid();
         user.Role = Roles.CUSTOMER;
 
-        await _writeOnlyRepository.Add(user);
-        await _unitOfWork.Commit();
+        await _writeOnlyRepository.Add(user, cancellationToken);
+        await _unitOfWork.Commit(cancellationToken);
 
         return new RegisterUserResponse
         {
@@ -58,11 +58,11 @@ public class RegisterUserUseCase : IRegisterUserUseCase
         };
     }
 
-    private async Task Validate(RegisterUserRequest request)
+    private async Task Validate(RegisterUserRequest request, CancellationToken cancellationToken)
     {
         var result = new RegisterUserValidator().Validate(request);
 
-        if (await _readOnlyRepository.ExistsUserWithEmail(request.Email))
+        if (await _readOnlyRepository.ExistsUserWithEmail(request.Email, cancellationToken))
             result.Errors.Add(new ValidationFailure(nameof(request.Email), ResourceErrorMessages.EMAIL_ALREADY_REGISTERED));
 
         result.ThrowIfInvalid();

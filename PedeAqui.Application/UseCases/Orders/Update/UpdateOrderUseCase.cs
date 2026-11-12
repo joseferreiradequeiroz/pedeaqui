@@ -1,8 +1,11 @@
 using AutoMapper;
+using Microsoft.Extensions.Options;
+using PedeAqui.Application.Settings;
 using PedeAqui.Application.Validation;
 using PedeAqui.Communication.Requests;
 using PedeAqui.Communication.Responses;
 using PedeAqui.Domain.Entities;
+using PedeAqui.Domain.Caching;
 using PedeAqui.Domain.Repositories;
 using PedeAqui.Domain.Repositories.Orders;
 using PedeAqui.Domain.Repositories.Products;
@@ -19,40 +22,58 @@ public class UpdateOrderUseCase : IUpdateOrderUseCase
     private readonly IProductUpdateOnlyRepository _productRepository;
     private readonly IStockMovementRepository _movementRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IProductCacheInvalidator _cacheInvalidator;
     private readonly ILoggedUser _loggedUser;
     private readonly IMapper _mapper;
+    private readonly OrderValidator _validator;
 
     public UpdateOrderUseCase(
         IOrderUpdateOnlyRepository orderRepository,
         IProductUpdateOnlyRepository productRepository,
         IStockMovementRepository movementRepository,
         IUnitOfWork unitOfWork,
+        IProductCacheInvalidator cacheInvalidator,
         ILoggedUser loggedUser,
-        IMapper mapper)
+        IMapper mapper,
+        IOptions<RequestLimits> requestLimits)
     {
         _orderRepository = orderRepository;
         _productRepository = productRepository;
         _movementRepository = movementRepository;
         _unitOfWork = unitOfWork;
+        _cacheInvalidator = cacheInvalidator;
         _loggedUser = loggedUser;
         _mapper = mapper;
+        _validator = new OrderValidator(requestLimits.Value);
     }
 
-    public async Task<OrderResponse> Execute(long id, OrderRequest request)
+    public async Task<OrderResponse> Execute(long id, OrderRequest request, CancellationToken cancellationToken)
     {
-        new OrderValidator().Validate(request).ThrowIfInvalid();
+        _validator.Validate(request).ThrowIfInvalid();
 
-        var user = await _loggedUser.Get();
-        var order = await _orderRepository.GetById(user, id);
+        var user = await _loggedUser.Get(cancellationToken);
+
+        var change = await _unitOfWork.ExecuteInTransaction(
+            transactionCancellationToken => ChangeOrder(user, id, request, transactionCancellationToken),
+            cancellationToken);
+        await _cacheInvalidator.Invalidate(change.AffectedProductIds, CancellationToken.None);
+
+        return _mapper.Map<OrderResponse>(change.Order);
+    }
+
+    private async Task<OrderChange> ChangeOrder(User user, long id, OrderRequest request, CancellationToken cancellationToken)
+    {
+        var order = await _orderRepository.GetById(user, id, cancellationToken);
 
         if (order is null || order.UserId != user.Id)
             throw new NotFoundException(ResourceErrorMessages.ORDER_NOT_FOUND);
 
-        order.EnsureIsPending(ResourceErrorMessages.ORDER_CANNOT_BE_CHANGED);
+        order.EnsureCanBeChanged();
 
         var productIds = request.Items.Select(item => item.ProductId)
-            .Union(order.Items.Select(item => item.ProductId));
-        var products = await _productRepository.GetByIds(productIds);
+            .Union(order.Items.Select(item => item.ProductId))
+            .ToList();
+        var products = await _productRepository.GetByIdsForUpdate(productIds, cancellationToken);
 
         var movements = new List<StockMovement>();
         var reason = $"Alteração do pedido #{order.Id}";
@@ -95,9 +116,10 @@ public class UpdateOrderUseCase : IUpdateOrderUseCase
         }
 
         _orderRepository.Update(order);
-        await _movementRepository.AddRange(movements);
-        await _unitOfWork.Commit();
+        await _movementRepository.AddRange(movements, cancellationToken);
 
-        return _mapper.Map<OrderResponse>(order);
+        return new OrderChange(order, productIds);
     }
+
+    private sealed record OrderChange(Order Order, IReadOnlyCollection<long> AffectedProductIds);
 }

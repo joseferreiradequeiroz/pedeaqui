@@ -5,5 +5,5 @@ namespace PedeAqui.Application.UseCases.Orders.Create;
 
 public interface ICreateOrderUseCase
 {
-    Task<OrderResponse> Execute(OrderRequest request);
+    Task<OrderResponse> Execute(OrderRequest request, CancellationToken cancellationToken);
 }

@@ -4,5 +4,5 @@ namespace PedeAqui.Application.UseCases.Orders.GetById;
 
 public interface IGetOrderByIdUseCase
 {
-    Task<OrderResponse> Execute(long id);
+    Task<OrderResponse> Execute(long id, CancellationToken cancellationToken);
 }

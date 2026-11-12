@@ -17,9 +17,9 @@ public class GetProductByIdUseCase : IGetProductByIdUseCase
         _mapper = mapper;
     }
 
-    public async Task<ProductResponse> Execute(long id)
+    public async Task<ProductResponse> Execute(long id, CancellationToken cancellationToken)
     {
-        var product = await _readOnlyRepository.GetById(id)
+        var product = await _readOnlyRepository.GetById(id, cancellationToken)
             ?? throw new NotFoundException(ResourceErrorMessages.PRODUCT_NOT_FOUND);
 
         return _mapper.Map<ProductResponse>(product);

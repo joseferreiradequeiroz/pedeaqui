@@ -4,5 +4,5 @@ namespace PedeAqui.Application.UseCases.Products.GetAll;
 
 public interface IGetAllProductsUseCase
 {
-    Task<ProductsResponse> Execute();
+    Task<ProductsResponse> Execute(CancellationToken cancellationToken);
 }

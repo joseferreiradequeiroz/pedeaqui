@@ -23,12 +23,12 @@ public class GetStockByProductUseCase : IGetStockByProductUseCase
         _mapper = mapper;
     }
 
-    public async Task<StockResponse> Execute(long productId)
+    public async Task<StockResponse> Execute(long productId, CancellationToken cancellationToken)
     {
-        var product = await _productRepository.GetById(productId)
+        var product = await _productRepository.GetById(productId, cancellationToken)
             ?? throw new NotFoundException(ResourceErrorMessages.PRODUCT_NOT_FOUND);
 
-        var movements = await _movementRepository.GetByProduct(productId);
+        var movements = await _movementRepository.GetByProduct(productId, cancellationToken);
 
         return new StockResponse
         {

@@ -23,9 +23,9 @@ public class LoginUseCase : ILoginUseCase
         _tokenGenerator = tokenGenerator;
     }
 
-    public async Task<LoginResponse> Execute(LoginRequest request)
+    public async Task<LoginResponse> Execute(LoginRequest request, CancellationToken cancellationToken)
     {
-        var user = await _readOnlyRepository.GetUserByEmail(request.Email);
+        var user = await _readOnlyRepository.GetUserByEmail(request.Email, cancellationToken);
 
         if (user is null || !_passwordEncripter.Verify(request.Password, user.Password))
             throw new InvalidLoginException();

@@ -4,5 +4,5 @@ namespace PedeAqui.Application.UseCases.Stock.GetByProduct;
 
 public interface IGetStockByProductUseCase
 {
-    Task<StockResponse> Execute(long productId);
+    Task<StockResponse> Execute(long productId, CancellationToken cancellationToken);
 }

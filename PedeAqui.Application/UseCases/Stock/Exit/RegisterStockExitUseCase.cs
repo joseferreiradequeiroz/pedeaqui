@@ -2,6 +2,8 @@ using AutoMapper;
 using PedeAqui.Application.Validation;
 using PedeAqui.Communication.Requests;
 using PedeAqui.Communication.Responses;
+using PedeAqui.Domain.Entities;
+using PedeAqui.Domain.Caching;
 using PedeAqui.Domain.Repositories;
 using PedeAqui.Domain.Repositories.Products;
 using PedeAqui.Domain.Repositories.Stock;
@@ -15,33 +17,45 @@ public class RegisterStockExitUseCase : IRegisterStockExitUseCase
     private readonly IProductUpdateOnlyRepository _productRepository;
     private readonly IStockMovementRepository _movementRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IProductCacheInvalidator _cacheInvalidator;
     private readonly IMapper _mapper;
 
     public RegisterStockExitUseCase(
         IProductUpdateOnlyRepository productRepository,
         IStockMovementRepository movementRepository,
         IUnitOfWork unitOfWork,
+        IProductCacheInvalidator cacheInvalidator,
         IMapper mapper)
     {
         _productRepository = productRepository;
         _movementRepository = movementRepository;
         _unitOfWork = unitOfWork;
+        _cacheInvalidator = cacheInvalidator;
         _mapper = mapper;
     }
 
-    public async Task<StockMovementResponse> Execute(long productId, StockMovementRequest request)
+    public async Task<StockMovementResponse> Execute(long productId, StockMovementRequest request, CancellationToken cancellationToken)
     {
         new StockMovementValidator().Validate(request).ThrowIfInvalid();
 
-        var product = await _productRepository.GetById(productId)
+        var movement = await _unitOfWork.ExecuteInTransaction(
+            transactionCancellationToken => RegisterMovement(productId, request, transactionCancellationToken),
+            cancellationToken);
+        await _cacheInvalidator.Invalidate([productId], CancellationToken.None);
+
+        return _mapper.Map<StockMovementResponse>(movement);
+    }
+
+    private async Task<StockMovement> RegisterMovement(long productId, StockMovementRequest request, CancellationToken cancellationToken)
+    {
+        var product = await _productRepository.GetByIdForUpdate(productId, cancellationToken)
             ?? throw new NotFoundException(ResourceErrorMessages.PRODUCT_NOT_FOUND);
 
         var movement = product.RemoveStock(request.Quantity, request.Reason);
 
         _productRepository.Update(product);
-        await _movementRepository.Add(movement);
-        await _unitOfWork.Commit();
+        await _movementRepository.Add(movement, cancellationToken);
 
-        return _mapper.Map<StockMovementResponse>(movement);
+        return movement;
     }
 }

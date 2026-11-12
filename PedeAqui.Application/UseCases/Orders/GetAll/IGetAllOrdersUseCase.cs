@@ -4,5 +4,5 @@ namespace PedeAqui.Application.UseCases.Orders.GetAll;
 
 public interface IGetAllOrdersUseCase
 {
-    Task<OrdersResponse> Execute();
+    Task<OrdersResponse> Execute(CancellationToken cancellationToken);
 }

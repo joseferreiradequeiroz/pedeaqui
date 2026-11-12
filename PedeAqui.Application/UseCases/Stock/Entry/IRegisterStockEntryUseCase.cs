@@ -5,5 +5,5 @@ namespace PedeAqui.Application.UseCases.Stock.Entry;
 
 public interface IRegisterStockEntryUseCase
 {
-    Task<StockMovementResponse> Execute(long productId, StockMovementRequest request);
+    Task<StockMovementResponse> Execute(long productId, StockMovementRequest request, CancellationToken cancellationToken);
 }

@@ -4,5 +4,5 @@ namespace PedeAqui.Application.UseCases.Products.GetById;
 
 public interface IGetProductByIdUseCase
 {
-    Task<ProductResponse> Execute(long id);
+    Task<ProductResponse> Execute(long id, CancellationToken cancellationToken);
 }

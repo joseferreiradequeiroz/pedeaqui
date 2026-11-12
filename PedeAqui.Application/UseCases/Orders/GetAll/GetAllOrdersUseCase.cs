@@ -18,10 +18,10 @@ public class GetAllOrdersUseCase : IGetAllOrdersUseCase
         _mapper = mapper;
     }
 
-    public async Task<OrdersResponse> Execute()
+    public async Task<OrdersResponse> Execute(CancellationToken cancellationToken)
     {
-        var user = await _loggedUser.Get();
-        var orders = await _orderRepository.GetAll(user);
+        var user = await _loggedUser.Get(cancellationToken);
+        var orders = await _orderRepository.GetAll(user, cancellationToken);
 
         return new OrdersResponse
         {

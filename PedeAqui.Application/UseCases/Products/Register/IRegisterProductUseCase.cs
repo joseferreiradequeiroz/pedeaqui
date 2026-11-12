@@ -5,5 +5,5 @@ namespace PedeAqui.Application.UseCases.Products.Register;
 
 public interface IRegisterProductUseCase
 {
-    Task<ProductResponse> Execute(ProductRequest request);
+    Task<ProductResponse> Execute(ProductRequest request, CancellationToken cancellationToken);
 }
