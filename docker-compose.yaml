@@ -16,6 +16,7 @@ services:
       timeout: 5s
       retries: 10
   redis:
+    container_name: pedeaqui-redis
     image: redis:7-alpine
     ports:
       - "6379:6379"
@@ -24,6 +25,92 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+  rabbitmq:
+    container_name: pedeaqui-rabbitmq
+    hostname: pedeaqui-rabbitmq
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: pedeaqui
+      RABBITMQ_DEFAULT_PASS: pedeaqui
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  payment-gateway:
+    container_name: pedeaqui-payment-gateway
+    build:
+      context: .
+      dockerfile: PedeAqui.PaymentGateway/Dockerfile
+    ports:
+      - "5000:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+  api:
+    container_name: pedeaqui-api
+    build:
+      context: .
+      dockerfile: PedeAqui/Dockerfile
+    stop_grace_period: 40s
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Connection: "Host=postgres;Port=5432;Database=pedeaqui;Username=postgres;Password=postgres"
+      ConnectionStrings__Redis: "redis:6379,abortConnect=false,connectTimeout=1000,asyncTimeout=1000"
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__UserName: pedeaqui
+      RabbitMq__Password: pedeaqui
+      Settings__Jwt__SigningKey: "${JWT_SIGNING_KEY:-chave-de-desenvolvimento-do-compose-do-pedeaqui}"
+      Settings__Admin__Email: "${ADMIN_EMAIL:-admin@pedeaqui.dev}"
+      Settings__Admin__Password: "${ADMIN_PASSWORD:-Admin@123}"
+    ports:
+      - "5238:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:8080/health/ready"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+  worker:
+    container_name: pedeaqui-worker
+    build:
+      context: .
+      dockerfile: PedeAqui.Worker/Dockerfile
+    stop_grace_period: 40s
+    environment:
+      ConnectionStrings__Connection: "Host=postgres;Port=5432;Database=pedeaqui;Username=postgres;Password=postgres"
+      ConnectionStrings__Redis: "redis:6379,abortConnect=false,connectTimeout=1000,asyncTimeout=1000"
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__UserName: pedeaqui
+      RabbitMq__Password: pedeaqui
+      PaymentGateway__BaseUrl: "http://payment-gateway:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+      payment-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q PedeAqui.Worker.dll /proc/1/cmdline"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
 volumes:
   postgres-data:
+  rabbitmq-data:
