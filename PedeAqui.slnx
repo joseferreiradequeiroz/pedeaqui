@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+    <File Path="docs/README-consistencia-acid-concorrencia.md" />
+    <File Path="docker-compose.yaml" />
+    <File Path="dotnet-tools.json" />
+    <File Path=".gitignore" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="PedeAqui/PedeAqui.csproj" />
+    <Project Path="PedeAqui.Application/PedeAqui.Application.csproj" />
+    <Project Path="PedeAqui.Communication/PedeAqui.Communication.csproj" />
+    <Project Path="PedeAqui.Domain/PedeAqui.Domain.csproj" />
+    <Project Path="PedeAqui.Exception/PedeAqui.Exception.csproj" />
+    <Project Path="PedeAqui.Infrastructure/PedeAqui.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PedeAqui.UnitTests/PedeAqui.UnitTests.csproj" />
+    <Project Path="tests/PedeAqui.IntegrationTests/PedeAqui.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
