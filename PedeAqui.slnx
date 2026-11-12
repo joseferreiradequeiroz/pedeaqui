@@ -13,9 +13,12 @@
     <Project Path="PedeAqui.Domain/PedeAqui.Domain.csproj" />
     <Project Path="PedeAqui.Exception/PedeAqui.Exception.csproj" />
     <Project Path="PedeAqui.Infrastructure/PedeAqui.Infrastructure.csproj" />
+    <Project Path="PedeAqui.PaymentGateway/PedeAqui.PaymentGateway.csproj" />
+    <Project Path="PedeAqui.Worker/PedeAqui.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PedeAqui.UnitTests/PedeAqui.UnitTests.csproj" />
     <Project Path="tests/PedeAqui.IntegrationTests/PedeAqui.IntegrationTests.csproj" />
+    <Project Path="tests/PedeAqui.PaymentGateway.Tests/PedeAqui.PaymentGateway.Tests.csproj" />
   </Folder>
 </Solution>

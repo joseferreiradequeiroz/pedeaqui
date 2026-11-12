@@ -56,7 +56,3 @@ Authorization: Bearer {{customerToken}}
 ### Cancelar pedido (devolve o estoque)
 PATCH {{host}}/api/orders/1/cancel
 Authorization: Bearer {{customerToken}}
-
-### Confirmar pedido (admin)
-PATCH {{host}}/api/orders/1/confirm
-Authorization: Bearer {{adminToken}}

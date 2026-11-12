@@ -1,11 +1,18 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using PedeAqui.Application.Idempotency;
+using PedeAqui.Application.Services;
+using PedeAqui.Application.Settings;
+using PedeAqui.Application.UseCases.Idempotency.Cleanup;
 using PedeAqui.Application.UseCases.Orders.Cancel;
-using PedeAqui.Application.UseCases.Orders.Confirm;
 using PedeAqui.Application.UseCases.Orders.Create;
+using PedeAqui.Application.UseCases.Orders.Expire;
 using PedeAqui.Application.UseCases.Orders.GetAll;
 using PedeAqui.Application.UseCases.Orders.GetById;
 using PedeAqui.Application.UseCases.Orders.Update;
+using PedeAqui.Application.UseCases.Payments.Process;
+using PedeAqui.Application.UseCases.Payments.Reconcile;
 using PedeAqui.Application.UseCases.Products.Delete;
 using PedeAqui.Application.UseCases.Products.GetAll;
 using PedeAqui.Application.UseCases.Products.GetById;
@@ -23,8 +30,33 @@ public static class DependencyInjectionExtension
 {
     public static void AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
+        AddSettings(services, configuration);
+        AddServices(services);
         AddUseCases(services);
         AddMapper(services, configuration);
+    }
+
+    public static IServiceCollection AddPaymentProcessing(this IServiceCollection services)
+    {
+        services.AddScoped<IProcessOrderPaymentUseCase, ProcessOrderPaymentUseCase>();
+        services.AddScoped<IReconcilePaymentsUseCase, ReconcilePaymentsUseCase>();
+
+        return services;
+    }
+
+    private static void AddSettings(IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<RequestLimits>(configuration.GetSection(RequestLimits.SECTION));
+        services.Configure<IdempotencyOptions>(configuration.GetSection(IdempotencyOptions.SECTION));
+        services.Configure<OrdersOptions>(configuration.GetSection(OrdersOptions.SECTION));
+        services.Configure<PaymentsOptions>(configuration.GetSection(PaymentsOptions.SECTION));
+    }
+
+    private static void AddServices(IServiceCollection services)
+    {
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddScoped<IOrderStockReleaser, OrderStockReleaser>();
+        services.AddScoped<IIdempotencyService, IdempotencyService>();
     }
 
     private static void AddUseCases(IServiceCollection services)
@@ -45,9 +77,11 @@ public static class DependencyInjectionExtension
         services.AddScoped<ICreateOrderUseCase, CreateOrderUseCase>();
         services.AddScoped<IUpdateOrderUseCase, UpdateOrderUseCase>();
         services.AddScoped<ICancelOrderUseCase, CancelOrderUseCase>();
-        services.AddScoped<IConfirmOrderUseCase, ConfirmOrderUseCase>();
         services.AddScoped<IGetAllOrdersUseCase, GetAllOrdersUseCase>();
         services.AddScoped<IGetOrderByIdUseCase, GetOrderByIdUseCase>();
+        services.AddScoped<IExpirePendingOrdersUseCase, ExpirePendingOrdersUseCase>();
+
+        services.AddScoped<ICleanupIdempotencyKeysUseCase, CleanupIdempotencyKeysUseCase>();
     }
 
     private static void AddMapper(IServiceCollection services, IConfiguration configuration)

@@ -14,6 +14,9 @@ internal class PedeAquiDbContext : DbContext
     public DbSet<StockMovement> StockMovements { get; set; }
     public DbSet<Order> Orders { get; set; }
     public DbSet<OrderItem> OrderItems { get; set; }
+    public DbSet<IdempotencyRequest> IdempotencyRequests { get; set; }
+    public DbSet<OutboxMessage> OutboxMessages { get; set; }
+    public DbSet<InboxMessage> InboxMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
